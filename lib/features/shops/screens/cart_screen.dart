@@ -6,7 +6,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/widgets/sogo_widgets.dart';
 import 'checkout_screen.dart';
-import 'products/product_detail_screen.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -78,14 +77,14 @@ class _CartScreenState extends State<CartScreen> {
                   const Icon(Icons.shopping_cart_outlined,
                       size: 56, color: SogoColors.textMuted),
                   const SizedBox(height: SogoSpacing.md),
-                  Text('Your cart is empty', style: SogoText.headlineMd),
+                  const Text('Your cart is empty', style: SogoText.headlineMd),
                   const SizedBox(height: SogoSpacing.sm),
-                  Text('Browse shops and add parts you need.',
+                  Text('Browse providers and add parts you need.',
                       style: SogoText.bodyMd
                           .copyWith(color: SogoColors.textSecondary)),
                   const SizedBox(height: SogoSpacing.lg),
                   SogoButton(
-                      label: 'Browse shops',
+                      label: 'Browse providers',
                       fullWidth: false,
                       onPressed: () => Navigator.of(context).pop()),
                 ]),
@@ -94,6 +93,8 @@ class _CartScreenState extends State<CartScreen> {
           }
 
           final subtotal = num.tryParse('${data['subtotal'] ?? 0}') ?? 0;
+          final delivery = num.tryParse('${data['delivery_fee'] ?? 0}') ?? 0;
+          final total = subtotal + delivery;
 
           return Column(children: [
             if (provider != null)
@@ -207,13 +208,34 @@ class _CartScreenState extends State<CartScreen> {
                             style: SogoText.bodyLg
                                 .copyWith(fontWeight: FontWeight.w700))),
                     Text(ugx(subtotal),
+                        style: SogoText.bodyLg
+                            .copyWith(fontWeight: FontWeight.w700)),
+                  ]),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    Expanded(
+                        child: Text('Delivery fee',
+                            style: SogoText.bodyLg
+                                .copyWith(fontWeight: FontWeight.w700))),
+                    Text(delivery > 0 ? ugx(delivery) : 'Free',
+                        style: SogoText.bodyLg.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: delivery > 0
+                                ? SogoColors.textPrimary
+                                : SogoColors.success)),
+                  ]),
+                  const SizedBox(height: SogoSpacing.sm),
+                  const Divider(height: 1),
+                  const SizedBox(height: SogoSpacing.sm),
+                  Row(children: [
+                    Expanded(
+                        child: Text('Total',
+                            style: SogoText.headlineMd
+                                .copyWith(fontWeight: FontWeight.w800))),
+                    Text(ugx(total),
                         style: SogoText.headlineMd
                             .copyWith(color: SogoColors.primary)),
                   ]),
-                  const SizedBox(height: 4),
-                  Text('Delivery fee is added by the shop at checkout.',
-                      style: SogoText.labelMd
-                          .copyWith(color: SogoColors.textSecondary)),
                   const SizedBox(height: SogoSpacing.md),
                   SogoButton(
                       label: 'Checkout',

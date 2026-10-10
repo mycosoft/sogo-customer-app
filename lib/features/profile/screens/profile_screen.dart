@@ -401,7 +401,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: SogoSpacing.md),
             // -- Extended profile (matches the web profile page) --
             DropdownButtonFormField<String>(
-              value: _gender,
+              initialValue: _gender,
               decoration: InputDecoration(
                   labelText: 'Gender',
                   prefixIcon: const Icon(Icons.wc_outlined),
@@ -488,7 +488,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: SogoSpacing.md),
             DropdownButtonFormField<String>(
-              value: _language,
+              initialValue: _language,
               decoration: InputDecoration(
                   labelText: 'Preferred language',
                   prefixIcon: const Icon(Icons.language_outlined),
@@ -781,9 +781,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SogoSectionTitle('My details'),
               _profileView(user),
             ],
-            const SizedBox(height: SogoSpacing.xl),
-            const SogoSectionTitle('Account details'),
-            _accountDetails(),
             const SizedBox(height: SogoSpacing.xl),
             const SogoSectionTitle('My vehicles'),
             _vehiclesCard(),

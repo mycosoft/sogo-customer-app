@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import '../app_services.dart';
 import '../api/push_api.dart';
 import '../../features/messages/screens/chats_screen.dart';
+import '../../features/notifications/screens/notifications_screen.dart';
+import '../../features/orders/screens/orders_screen.dart';
+import '../../features/requests/screens/request_details_screen.dart';
 
 /// Firebase Cloud Messaging wrapper.
 ///
@@ -35,22 +38,23 @@ class PushService {
     await messaging.requestPermission(alert: true, badge: true, sound: true);
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      final data = Map<String, dynamic>.from(message.data);
       final n = message.notification;
       if (n != null) {
-        _showBanner(n.title ?? 'SOGO', n.body ?? '',
-            onOpen: message.data['type'] == 'chat'
-                ? () => _openChat(message)
-                : null);
-      } else if (message.data['type'] == 'chat') {
-        // Data-only chat push while foreground - still surface it.
-        _showBanner('New message', '', onOpen: () => _openChat(message));
+        _showBanner(n.title ?? '${data['title'] ?? 'SOGO'}', n.body ?? '',
+            onOpen: () => _openFromData(data));
+      } else {
+        // Data-only push while foreground - still surface it.
+        _showBanner('${data['title'] ?? 'SOGO'}', '',
+            onOpen: () => _openFromData(data));
       }
     });
 
     // Taps on background/terminated notifications.
-    FirebaseMessaging.onMessageOpenedApp.listen(_openChatIfChat);
+    FirebaseMessaging.onMessageOpenedApp
+        .listen((m) => _openFromData(Map<String, dynamic>.from(m.data)));
     messaging.getInitialMessage().then((m) {
-      if (m != null) _openChatIfChat(m);
+      if (m != null) _openFromData(Map<String, dynamic>.from(m.data));
     });
 
     final token = await messaging.getToken();
@@ -69,16 +73,44 @@ class PushService {
     }
   }
 
-  static void _openChatIfChat(RemoteMessage message) {
-    if (message.data['type'] == 'chat') _openChat(message);
+  /// Routes every push to its screen: chat thread, job details, orders,
+  /// or the notifications hub as fallback. Server sends
+  /// {type, title, url}; job urls already point at the right audience.
+  static void _openFromData(Map<String, dynamic> data) {
+    if ('${data['type']}' == 'chat') {
+      final id = int.tryParse('${data['from_user_id'] ?? ''}');
+      if (id == null) return;
+      _push(ChatScreen(
+          userId: id, name: '${data['from_name'] ?? 'Chat'}'));
+      return;
+    }
+    final job = RegExp(r'/customer/requests/(\d+)')
+        .firstMatch('${data['url'] ?? ''}');
+    if (job != null) {
+      _openRequest(int.parse(job.group(1)!));
+      return;
+    }
+    if ('${data['title'] ?? ''}'.toLowerCase().contains('order')) {
+      _push(const OrdersScreen());
+      return;
+    }
+    _push(const NotificationsScreen());
   }
 
-  static void _openChat(RemoteMessage message) {
-    final id = int.tryParse('${message.data['from_user_id'] ?? ''}');
-    if (id == null) return;
-    final name = '${message.data['from_name'] ?? 'Chat'}';
-    navigatorKey.currentState?.push(
-        MaterialPageRoute(builder: (_) => ChatScreen(userId: id, name: name)));
+  static Future<void> _openRequest(int id) async {
+    try {
+      final res = await customerApi.getRequest(id);
+      final request = res['data'] as Map<String, dynamic>?;
+      if (request == null) return;
+      _push(RequestDetailsScreen(request: request));
+    } catch (_) {
+      _push(const NotificationsScreen());
+    }
+  }
+
+  static void _push(Widget screen) {
+    navigatorKey.currentState
+        ?.push(MaterialPageRoute(builder: (_) => screen));
   }
 
   static void _showBanner(String title, String body, {VoidCallback? onOpen}) {

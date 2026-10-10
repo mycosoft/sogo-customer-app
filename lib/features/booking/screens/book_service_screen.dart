@@ -7,6 +7,7 @@ import '../../../core/app_services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/money.dart';
 import '../../../core/utils/service_icons.dart';
 import '../../../core/widgets/sogo_widgets.dart';
 import '../../requests/screens/my_requests_screen.dart';
@@ -105,7 +106,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
   }
 
   Future<void> _ensureLocationReady() async {
-    var enabled = await Geolocator.isLocationServiceEnabled();
+    final enabled = await Geolocator.isLocationServiceEnabled();
     if (!enabled) {
       throw Exception('Location services are disabled - turn on GPS');
     }
@@ -474,7 +475,8 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(SogoSpacing.lg),
+                  padding: const EdgeInsets.fromLTRB(
+                      SogoSpacing.lg, SogoSpacing.lg, SogoSpacing.lg, SogoSpacing.xl + 56),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -486,7 +488,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                         physics: const NeverScrollableScrollPhysics(),
                         mainAxisSpacing: SogoSpacing.md,
                         crossAxisSpacing: SogoSpacing.md,
-                        childAspectRatio: 1.05,
+                        childAspectRatio: 0.92,
                         children: _categories.map((c) {
                           final selected = _selectedCategoryId == c['id'];
                           final price =
@@ -533,7 +535,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 8),
                                         child: Text(
-                                            'from UGX ${price.toStringAsFixed(0)}',
+                                            'from ${ugx(price)}',
                                             style: SogoText.labelMd.copyWith(
                                                 color:
                                                     SogoColors.textSecondary)),
@@ -549,7 +551,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                       const SogoSectionTitle('Your vehicle'),
                       const SizedBox(height: SogoSpacing.md),
                       DropdownButtonFormField<int>(
-                        value: _selectedVehicleId,
+                        initialValue: _selectedVehicleId,
                         items: _vehicles
                             .map((v) => DropdownMenuItem<int>(
                                 value: v['id'] as int,

@@ -103,4 +103,18 @@ class CustomerApi {
         if (comment != null && comment.trim().isNotEmpty)
           'comment': comment.trim(),
       });
+
+  Future<Map<String, dynamic>> submitDispute({
+    required int requestId,
+    required String category,
+    required String description,
+  }) =>
+      _client.post('/api/v1/customer/disputes', {
+        'service_request_id': requestId,
+        'category': category,
+        'description': description,
+      });
+
+  Future<Map<String, dynamic>> myDisputes() =>
+      _client.get('/api/v1/customer/disputes');
 }

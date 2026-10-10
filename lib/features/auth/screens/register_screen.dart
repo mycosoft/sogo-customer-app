@@ -70,7 +70,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Join SOGO', style: SogoText.displayMd),
+                const Text('Join SOGO', style: SogoText.displayMd),
                 const SizedBox(height: 6),
                 Text('Book and manage vehicle services in minutes',
                     style: SogoText.bodyMd

@@ -127,7 +127,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                         size: 40, color: SogoColors.primary),
                   ),
                   const SizedBox(height: SogoSpacing.lg),
-                  Text('No vehicles yet', style: SogoText.headlineMd),
+                  const Text('No vehicles yet', style: SogoText.headlineMd),
                   const SizedBox(height: SogoSpacing.sm),
                   Text(
                       'Add your vehicle so providers know exactly what they are working on.',
@@ -404,7 +404,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
                 borderRadius: BorderRadius.circular(SogoRadius.md),
                 child: Stack(fit: StackFit.expand, children: [
                   Image.file(File(_newPhotoPath!), fit: BoxFit.cover),
-                  Positioned(
+                  const Positioned(
                       right: 6,
                       top: 6,
                       child: CircleAvatar(
@@ -419,7 +419,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
                     borderRadius: BorderRadius.circular(SogoRadius.md),
                     child: Stack(fit: StackFit.expand, children: [
                       Image.network(_existingPhoto!, fit: BoxFit.cover),
-                      Positioned(
+                      const Positioned(
                           right: 6,
                           top: 6,
                           child: CircleAvatar(
@@ -569,7 +569,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
             ),
             const SizedBox(height: SogoSpacing.md),
             DropdownButtonFormField<String>(
-              value: _fuel,
+              initialValue: _fuel,
               decoration: InputDecoration(
                   labelText: 'Fuel type',
                   prefixIcon: const Icon(Icons.local_gas_station_outlined),

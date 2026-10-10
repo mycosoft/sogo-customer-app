@@ -24,6 +24,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String _payment = 'cash';
   bool _placing = false;
   num _walletBalance = 0;
+  num _subtotal = 0;
+  num _deliveryFee = 0;
+  bool _summaryLoading = true;
 
   @override
   void initState() {
@@ -61,6 +64,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _walletBalance = num.tryParse('${wallet?['balance'] ?? 0}') ?? 0;
       });
     } catch (_) {}
+    try {
+      final cart = await shopApi.cart();
+      final c = cart['data'] as Map<String, dynamic>? ?? {};
+      if (!mounted) return;
+      setState(() {
+        _subtotal = num.tryParse('${c['subtotal'] ?? 0}') ?? 0;
+        _deliveryFee = num.tryParse('${c['delivery_fee'] ?? 0}') ?? 0;
+        _summaryLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _summaryLoading = false);
+    }
   }
 
   Future<void> _useGps() async {
@@ -148,6 +163,50 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         child: ListView(
           padding: const EdgeInsets.all(SogoSpacing.lg),
           children: [
+            const SogoSectionTitle('Order summary'),
+            const SizedBox(height: SogoSpacing.md),
+            SogoCard(
+              child: _summaryLoading
+                  ? const Center(
+                      child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2)))
+                  : Column(children: [
+                      Row(children: [
+                        Expanded(
+                            child: Text('Subtotal',
+                                style: SogoText.bodyMd.copyWith(
+                                    color: SogoColors.textSecondary))),
+                        Text(ugx(_subtotal), style: SogoText.bodyMd),
+                      ]),
+                      const SizedBox(height: 4),
+                      Row(children: [
+                        Expanded(
+                            child: Text('Delivery fee',
+                                style: SogoText.bodyMd.copyWith(
+                                    color: SogoColors.textSecondary))),
+                        Text(_deliveryFee > 0 ? ugx(_deliveryFee) : 'Free',
+                            style: SogoText.bodyMd.copyWith(
+                                color: _deliveryFee > 0
+                                    ? SogoColors.textPrimary
+                                    : SogoColors.success)),
+                      ]),
+                      const SizedBox(height: SogoSpacing.sm),
+                      const Divider(height: 1),
+                      const SizedBox(height: SogoSpacing.sm),
+                      Row(children: [
+                        Expanded(
+                            child: Text('Total',
+                                style: SogoText.bodyLg
+                                    .copyWith(fontWeight: FontWeight.w800))),
+                        Text(ugx(_subtotal + _deliveryFee),
+                            style: SogoText.headlineMd
+                                .copyWith(color: SogoColors.primary)),
+                      ]),
+                    ]),
+            ),
+            const SizedBox(height: SogoSpacing.xl),
             const SogoSectionTitle('Delivery details'),
             const SizedBox(height: SogoSpacing.md),
             SogoCard(

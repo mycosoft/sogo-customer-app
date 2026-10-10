@@ -67,7 +67,7 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
         Padding(
           padding: const EdgeInsets.all(SogoSpacing.lg),
           child: Row(children: [
-            Expanded(
+            const Expanded(
                 child: Text('Providers near you', style: SogoText.headlineMd)),
             IconButton(
                 onPressed: () => Navigator.pop(context),

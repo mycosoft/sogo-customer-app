@@ -121,7 +121,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
   }
 
   Future<void> _call(String? phone) async {
-    final cleaned = '${phone ?? ''}'.replaceAll(RegExp(r'[^\d+]'), '');
+    final cleaned = (phone ?? '').replaceAll(RegExp(r'[^\d+]'), '');
     if (cleaned.isEmpty) return;
     final uri = Uri.parse('tel:$cleaned');
     try {
@@ -407,9 +407,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
                 child: Container(
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: SogoColors.surfaceMuted,
-                    borderRadius: const BorderRadius.vertical(
+                    borderRadius: BorderRadius.vertical(
                         top: Radius.circular(SogoRadius.md)),
                   ),
                   child: Center(

@@ -31,7 +31,6 @@ class RequestDetailsScreen extends StatefulWidget {
 class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   late Map<String, dynamic> _request = widget.request;
   bool _loading = false;
-  bool _reviewed = false;
   Timer? _pollTimer;
   final MapController _mapController = MapController();
 
@@ -46,18 +45,41 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   bool get _isActive => _activeStatuses.contains('${_request['status']}');
   bool get _canCancel => !_canCancelForbidden.contains('${_request['status']}');
   static const _canCancelForbidden = ['completed', 'cancelled', 'expired'];
-
   @override
   void initState() {
     super.initState();
-    _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) => _refresh());
+    _pollTimer =
+        Timer.periodic(const Duration(seconds: 8), (_) => _refresh());
     // Initial refresh so the map gets the latest provider position.
     _refresh();
+    _subscribeRealtime();
+  }
+
+  /// Live socket upgrade: provider GPS pings and status changes refresh
+  /// instantly instead of waiting for the 8s poll. The poll stays as
+  /// fallback.
+  Future<void> _subscribeRealtime() async {
+    try {
+      final id = _request['id'] as int;
+      await realtime.subscribe(
+          'private-tracking.request.$id', 'location.updated', (_) {
+        if (mounted) _refresh();
+      });
+      await realtime.subscribe('private-requests.$id', 'request.updated',
+          (_) {
+        if (mounted) _refresh();
+      });
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
+    try {
+      final id = _request['id'] as int;
+      realtime.unsubscribe('private-tracking.request.$id', 'location.updated');
+      realtime.unsubscribe('private-requests.$id', 'request.updated');
+    } catch (_) {}
     super.dispose();
   }
 
@@ -191,9 +213,104 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     );
 
     if (submitted == true && mounted) {
-      setState(() => _reviewed = true);
+      _refresh();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Thanks! Your review was submitted.'),
+          backgroundColor: SogoColors.success));
+    }
+  }
+
+  static const _disputeCategories = [
+    ('service_not_completed', 'Service not completed'),
+    ('poor_quality', 'Poor quality work'),
+    ('overcharged', 'Overcharged'),
+    ('late_arrival', 'Provider very late'),
+    ('damaged_item', 'Something was damaged'),
+    ('other', 'Something else'),
+  ];
+
+  Future<void> _disputeDialog() async {
+    String category = _disputeCategories.first.$1;
+    final description = TextEditingController();
+    bool sending = false;
+
+    final submitted = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(SogoRadius.lg))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+              left: SogoSpacing.xl,
+              right: SogoSpacing.xl,
+              top: SogoSpacing.xl,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + SogoSpacing.xl),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('Report a problem', style: SogoText.headlineMd),
+            const SizedBox(height: SogoSpacing.sm),
+            Text(
+                'Our team will review it and get back to you. Refunds go back through your original payment method.',
+                style: SogoText.bodySm
+                    .copyWith(color: SogoColors.textSecondary)),
+            const SizedBox(height: SogoSpacing.md),
+            DropdownButtonFormField<String>(
+              initialValue: category,
+              decoration: InputDecoration(
+                  labelText: 'What went wrong?',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(SogoRadius.md))),
+              items: _disputeCategories
+                  .map((c) => DropdownMenuItem(
+                      value: c.$1, child: Text(c.$2)))
+                  .toList(),
+              onChanged: (v) => setSheet(() => category = v ?? category),
+            ),
+            const SizedBox(height: SogoSpacing.md),
+            TextField(
+              controller: description,
+              maxLines: 4,
+              maxLength: 2000,
+              decoration: InputDecoration(
+                  labelText: 'Describe what happened (min 10 characters)',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(SogoRadius.md))),
+            ),
+            const SizedBox(height: SogoSpacing.md),
+            SogoButton(
+                label: 'Submit report',
+                loading: sending,
+                onPressed: () async {
+                  if (description.text.trim().length < 10) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                        content: Text(
+                            'Please describe the problem in at least 10 characters.')));
+                    return;
+                  }
+                  setSheet(() => sending = true);
+                  try {
+                    await customerApi.submitDispute(
+                        requestId: _request['id'] as int,
+                        category: category,
+                        description: description.text.trim());
+                    if (ctx.mounted) Navigator.pop(ctx, true);
+                  } catch (e) {
+                    setSheet(() => sending = false);
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx)
+                          .showSnackBar(SnackBar(content: Text(e.toString())));
+                    }
+                  }
+                }),
+          ]),
+        ),
+      ),
+    );
+
+    if (submitted == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Report received. Our team will review it shortly.'),
           backgroundColor: SogoColors.success));
     }
   }
@@ -300,10 +417,10 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                       width: 46,
                       height: 46,
                       child: Container(
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
-                              boxShadow: const [SogoShadows.card]),
+                              boxShadow: [SogoShadows.card]),
                           child: const Icon(Icons.build_circle_rounded,
                               color: SogoColors.warning, size: 40))),
               ]),
@@ -369,12 +486,12 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     }
 
     final stages = <(_Step, String)>[
-      (_Step('Requested', Icons.receipt_long_rounded), at('created_at')),
-      (_Step('Provider matched', Icons.handshake_rounded), at('matched_at')),
-      (_Step('Accepted', Icons.thumb_up_alt_outlined), at('accepted_at')),
-      (_Step('Arriving', Icons.directions_car_rounded), at('arrived_at')),
-      (_Step('In progress', Icons.build_rounded), at('started_at')),
-      (_Step('Completed', Icons.task_alt_rounded), at('completed_at')),
+      (const _Step('Requested', Icons.receipt_long_rounded), at('created_at')),
+      (const _Step('Provider matched', Icons.handshake_rounded), at('matched_at')),
+      (const _Step('Accepted', Icons.thumb_up_alt_outlined), at('accepted_at')),
+      (const _Step('Arriving', Icons.directions_car_rounded), at('arrived_at')),
+      (const _Step('In progress', Icons.build_rounded), at('started_at')),
+      (const _Step('Completed', Icons.task_alt_rounded), at('completed_at')),
     ];
 
     const order = [
@@ -391,7 +508,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
     return SogoCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Progress', style: SogoText.headlineMd),
+        const Text('Progress', style: SogoText.headlineMd),
         const SizedBox(height: SogoSpacing.md),
         ...stages.asMap().entries.map((entry) {
           final i = entry.key;
@@ -677,13 +794,24 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           // -- Rate the provider (completed jobs only) --
           if (_request['status'] == 'completed' &&
               (_request['provider'] as Map<String, dynamic>?)?['user'] != null)
-            SogoButton(
-              label: _reviewed ? 'Thanks for rating' : 'Rate this service',
-              icon: Icons.star_rounded,
-              onPressed: _reviewed ? null : _reviewDialog,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_request['has_review'] == true)
+                  const SogoButton(
+                    label: 'Thanks for rating',
+                    icon: Icons.star_rounded,
+                    onPressed: null,
+                  )
+                else
+                  SogoButton(
+                    label: 'Rate this service',
+                    icon: Icons.star_rounded,
+                    onPressed: _reviewDialog,
+                  ),
+                const SizedBox(height: SogoSpacing.md),
+              ],
             ),
-          if (_request['status'] == 'completed')
-            const SizedBox(height: SogoSpacing.md),
 
           // -- Cancel (green, as requested) --
           if (_canCancel)
@@ -693,6 +821,18 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               onPressed: _loading ? null : _cancel,
               loading: _loading,
             ),
+
+          // -- Report a problem (finished jobs) --
+          if (_request['status'] == 'completed' ||
+              _request['status'] == 'cancelled') ...[
+            const SizedBox(height: SogoSpacing.md),
+            SogoButton(
+              label: 'Report a problem',
+              icon: Icons.flag_outlined,
+              variant: SogoButtonVariant.outline,
+              onPressed: _disputeDialog,
+            ),
+          ],
           const SizedBox(height: SogoSpacing.xl),
         ],
       ),

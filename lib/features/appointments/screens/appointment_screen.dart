@@ -82,7 +82,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   Future<void> _captureGps() async {
     setState(() => _locating = true);
     try {
-      var enabled = await Geolocator.isLocationServiceEnabled();
+      final enabled = await Geolocator.isLocationServiceEnabled();
       if (!enabled) throw Exception('Location services are disabled');
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
@@ -363,7 +363,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       const SogoSectionTitle('Your vehicle'),
                       const SizedBox(height: SogoSpacing.md),
                       DropdownButtonFormField<int>(
-                        value: _selectedVehicleId,
+                        initialValue: _selectedVehicleId,
                         items: _vehicles
                             .map((v) => DropdownMenuItem<int>(
                                 value: v['id'] as int,

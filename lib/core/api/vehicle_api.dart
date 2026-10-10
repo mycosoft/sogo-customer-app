@@ -10,8 +10,9 @@ class VehicleApi {
     final res = await _client.get('/api/v1/vehicles');
     final data = res['data'];
     if (data is List) return data;
-    if (data is Map && data['data'] is List)
+    if (data is Map && data['data'] is List) {
       return List<dynamic>.from(data['data']);
+    }
     return const [];
   }
 

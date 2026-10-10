@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/app_services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/widgets/sogo_widgets.dart';
+import 'deposit_webview_screen.dart';
 
 class PaymentsScreen extends StatefulWidget {
   const PaymentsScreen({super.key});
@@ -90,19 +90,18 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     final txRef = '${data?['tx_ref'] ?? ''}';
     if (link.isEmpty || !mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Complete the payment in the browser???')));
-
-    final launched =
-        await launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication);
-
-    // Give the user a moment, then verify ??" the webhook may also land.
-    await Future.delayed(const Duration(seconds: 6));
+    // In-app checkout: the sheet closes itself on our return URL (or on
+    // manual Done/close) and hands back the tx ref — then we verify.
+    // The sogo:// deep link + webhook stay as backup paths.
+    final returned = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+          builder: (_) => DepositWebViewScreen(link: link, txRef: txRef)),
+    );
     if (!mounted) return;
-    await _verifyDeposit(txRef, reopened: launched != true);
+    await _verifyDeposit(returned?.isNotEmpty == true ? returned! : txRef);
   }
 
-  Future<void> _verifyDeposit(String txRef, {bool reopened = false}) async {
+  Future<void> _verifyDeposit(String txRef) async {
     if (txRef.isEmpty) return;
     try {
       final res = await apiClient
@@ -111,16 +110,14 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(settled
-              ? 'Deposit confirmed ??" wallet updated'
+              ? 'Deposit confirmed — wallet updated'
               : (res['message'] ?? 'Payment not confirmed yet')),
           backgroundColor: settled ? SogoColors.success : SogoColors.warning));
       setState(() => _future = _load());
     } catch (e) {
       if (!mounted) return;
-      if (reopened) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
-      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
       setState(() => _future = _load());
     }
   }
@@ -540,8 +537,9 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
                 prefixIcon: Icons.payments_outlined,
                 validator: (v) {
                   final n = num.tryParse(v ?? '');
-                  if (n == null || n < 5000)
+                  if (n == null || n < 5000) {
                     return 'Minimum withdrawal is UGX 5,000';
+                  }
                   if (n > widget.balance) return 'Amount exceeds your balance';
                   return null;
                 }),

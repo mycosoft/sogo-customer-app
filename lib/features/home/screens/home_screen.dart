@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/app_services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/widgets/sogo_widgets.dart';
-import '../../appointments/screens/appointment_screen.dart';
 import '../../booking/screens/book_service_screen.dart';
 import '../../messages/screens/chats_screen.dart';
 import '../../notifications/screens/notifications_screen.dart';
 import '../../orders/screens/orders_screen.dart';
 import '../../requests/screens/my_requests_screen.dart';
 import '../../requests/screens/request_details_screen.dart';
+import '../../shops/screens/book_appointment_screen.dart';
 import '../../shops/screens/shops_screen.dart';
 import '../../shops/widgets/cart_icon_button.dart';
 import '../../support/screens/support_screen.dart';
@@ -134,6 +135,53 @@ class _HomeScreenState extends State<HomeScreen> {
       _future = _load();
     });
     await _future;
+  }
+
+  Future<void> _pickProviderForAppointment() async {
+    // Get current location
+    double? lat;
+    double? lng;
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission != LocationPermission.denied &&
+          permission != LocationPermission.deniedForever) {
+        final pos = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 10))
+            .timeout(const Duration(seconds: 12));
+        lat = pos.latitude;
+        lng = pos.longitude;
+      }
+    } catch (_) {}
+
+    // Use Kampala as fallback if no GPS
+    lat ??= 0.3476;
+    lng ??= 32.5825;
+
+    // Fetch nearby providers (all categories)
+    List<dynamic> providers = [];
+    try {
+      providers = await serviceApi.nearbyProviders(lat: lat, lng: lng);
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    final picked = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ProviderListSheet(providers: providers),
+    );
+
+    if (picked != null && picked['id'] != null && mounted) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => BookAppointmentScreen(provider: picked),
+      ));
+      _refresh();
+    }
   }
 
   @override
@@ -307,12 +355,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                     SogoColors.success),
                                 const SizedBox(height: SogoSpacing.md),
                                 _statRow(
-                                    'Vehicles',
-                                    '${stats['saved_vehicles'] ?? 0}',
-                                    Icons.directions_car_outlined,
-                                    SogoColors.info),
-                                const SizedBox(height: SogoSpacing.md),
-                                _statRow(
                                     'Spent',
                                     ugx(num.tryParse(
                                         '${stats['orders_spent'] ?? 0}')),
@@ -321,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                             const SizedBox(height: SogoSpacing.xl),
-                            // Quick links
+                            // Quick links - 3x2 grid
                             const SogoSectionTitle('Quick links'),
                             const SizedBox(height: SogoSpacing.sm),
                             Row(children: [
@@ -338,22 +380,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Icons.event_rounded,
                                   'Appointment',
                                   SogoColors.secondary,
-                                  () => Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                          builder: (_) =>
-                                              const AppointmentScreen()))),
+                                  () => _pickProviderForAppointment()),
                               const SizedBox(width: SogoSpacing.md),
-                              _quickLink(
-                                  Icons.assignment_outlined,
-                                  'Requests',
-                                  SogoColors.info,
-                                  () => Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                          builder: (_) =>
-                                              const MyRequestsScreen()))),
-                            ]),
-                            const SizedBox(height: SogoSpacing.md),
-                            Row(children: [
                               _quickLink(
                                   Icons.receipt_long_outlined,
                                   'Orders',
@@ -362,7 +390,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       MaterialPageRoute(
                                           builder: (_) =>
                                               const OrdersScreen()))),
-                              const SizedBox(width: SogoSpacing.md),
+                            ]),
+                            const SizedBox(height: SogoSpacing.md),
+                            Row(children: [
                               _quickLink(Icons.directions_car_outlined,
                                   'Vehicles', SogoColors.info, () async {
                                 await Navigator.of(context).push(
@@ -405,7 +435,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         fontWeight: FontWeight.w700)),
                               ),
                             ]),
-                            ...requests.take(3).map((request) => Padding(
+                            ...requests.take(2).map((request) => Padding(
                                   padding: const EdgeInsets.only(
                                       bottom: SogoSpacing.md),
                                   child: SogoCard(
@@ -431,7 +461,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         fontWeight: FontWeight.w700)),
                               ),
                             ]),
-                            ...orders.take(3).map((order) => Padding(
+                            ...orders.take(2).map((order) => Padding(
                                 padding: const EdgeInsets.only(
                                     bottom: SogoSpacing.md),
                                 child: SogoCard(
@@ -490,6 +520,103 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+class _ProviderListSheet extends StatelessWidget {
+  const _ProviderListSheet({required this.providers});
+  final List<dynamic> providers;
+
+  @override
+  Widget build(BuildContext context) {
+    if (providers.isEmpty) {
+      return SizedBox(
+        height: 300,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.storefront_outlined,
+                  size: 48, color: SogoColors.textMuted),
+              const SizedBox(height: SogoSpacing.md),
+              Text('No providers found nearby',
+                  style: SogoText.bodyMd.copyWith(color: SogoColors.textSecondary)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.7,
+      child: Column(children: [
+        Padding(
+          padding: const EdgeInsets.all(SogoSpacing.lg),
+          child: Row(children: [
+            const Expanded(
+                child: Text('Choose a provider', style: SogoText.headlineMd)),
+            IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close_rounded)),
+          ]),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: SogoSpacing.lg),
+            itemCount: providers.length,
+            separatorBuilder: (_, __) => const SizedBox(height: SogoSpacing.sm),
+            itemBuilder: (_, i) {
+              final p = providers[i] as Map<String, dynamic>;
+              return SogoCard(
+                onTap: () => Navigator.pop(context, p),
+                child: Row(children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(SogoRadius.md),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      color: SogoColors.primaryLight,
+                      child: p['logo_url'] != null
+                          ? Image.network('${p['logo_url']}', fit: BoxFit.cover)
+                          : const Icon(Icons.storefront_outlined,
+                              color: SogoColors.primary),
+                    ),
+                  ),
+                  const SizedBox(width: SogoSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${p['business_name'] ?? 'Provider'}',
+                            style: SogoText.bodyLg
+                                .copyWith(fontWeight: FontWeight.w700)),
+                        if (p['address'] != null)
+                          Text('${p['address']}',
+                              style: SogoText.bodySm
+                                  .copyWith(color: SogoColors.textSecondary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        if (p['rating_avg'] != null)
+                          Row(children: [
+                            const Icon(Icons.star_rounded,
+                                size: 14, color: SogoColors.warning),
+                            const SizedBox(width: 4),
+                            Text('${p['rating_avg']}',
+                                style: SogoText.bodySm
+                                    .copyWith(fontWeight: FontWeight.w600)),
+                          ]),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: SogoColors.textMuted),
+                ]),
+              );
+            },
+          ),
+        ),
+      ]),
     );
   }
 }

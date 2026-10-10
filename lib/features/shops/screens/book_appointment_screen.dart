@@ -210,7 +210,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                       const SogoSectionTitle('Which service?'),
                       const SizedBox(height: SogoSpacing.md),
                       DropdownButtonFormField<int>(
-                        value: _selectedCategoryId,
+                        initialValue: _selectedCategoryId,
                         isExpanded: true,
                         items: services
                             .map((s) => DropdownMenuItem<int>(

@@ -186,7 +186,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                       Container(
                         width: 84,
                         height: 84,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                             color: SogoColors.primaryLight,
                             shape: BoxShape.circle),
                         child: const Icon(Icons.handyman_outlined,
@@ -256,7 +256,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                                     style: SogoText.bodySm.copyWith(
                                         color: SogoColors.textSecondary)),
                                 const SizedBox(height: 2),
-                                Text('$date',
+                                Text(date,
                                     style: SogoText.labelMd
                                         .copyWith(color: SogoColors.textMuted)),
                                 if ('${r['scheduled_at'] ?? ''}'.isNotEmpty)

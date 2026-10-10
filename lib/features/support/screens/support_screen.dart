@@ -110,10 +110,10 @@ class _SupportScreenState extends State<SupportScreen> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Send us a message', style: SogoText.headlineMd),
+                    const Text('Send us a message', style: SogoText.headlineMd),
                     const SizedBox(height: SogoSpacing.lg),
                     DropdownButtonFormField<String>(
-                      value: _subject,
+                      initialValue: _subject,
                       decoration: InputDecoration(
                           labelText: 'Subject',
                           prefixIcon: const Icon(Icons.subject_outlined),

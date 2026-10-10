@@ -169,35 +169,54 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       Text('${p['name'] ?? ''}', style: SogoText.headlineLg),
                       const SizedBox(height: SogoSpacing.sm),
                       SogoCard(
-                        child: Row(children: [
-                          Expanded(
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                Text(ugx(num.tryParse('${p['price'] ?? 0}')),
-                                    style: SogoText.headlineMd
-                                        .copyWith(color: SogoColors.primary)),
-                                if (p['compare_at_price'] != null)
+                        child: Column(children: [
+                          Row(children: [
+                            Expanded(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                  Text(ugx(num.tryParse('${p['price'] ?? 0}')),
+                                      style: SogoText.headlineMd
+                                          .copyWith(color: SogoColors.primary)),
+                                  if (p['compare_at_price'] != null)
+                                    Text(
+                                        ugx(num.tryParse(
+                                            '${p['compare_at_price']}')),
+                                        style: SogoText.bodySm.copyWith(
+                                            color: SogoColors.textMuted,
+                                            decoration:
+                                                TextDecoration.lineThrough)),
+                                ])),
+                            Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text('Total',
+                                      style: SogoText.labelMd.copyWith(
+                                          color: SogoColors.textSecondary)),
                                   Text(
-                                      ugx(num.tryParse(
-                                          '${p['compare_at_price']}')),
-                                      style: SogoText.bodySm.copyWith(
-                                          color: SogoColors.textMuted,
-                                          decoration:
-                                              TextDecoration.lineThrough)),
-                              ])),
-                          Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text('Total',
-                                    style: SogoText.labelMd.copyWith(
-                                        color: SogoColors.textSecondary)),
-                                Text(
-                                    ugx((num.tryParse('${p['price'] ?? 0}') ??
-                                            0) *
-                                        _qty),
-                                    style: SogoText.headlineMd),
-                              ]),
+                                      ugx((num.tryParse('${p['price'] ?? 0}') ??
+                                              0) *
+                                          _qty),
+                                      style: SogoText.headlineMd),
+                                ]),
+                          ]),
+                          const SizedBox(height: SogoSpacing.sm),
+                          const Divider(height: 1),
+                          const SizedBox(height: SogoSpacing.sm),
+                          Row(children: [
+                            const Icon(Icons.local_shipping_outlined,
+                                size: 16, color: SogoColors.textSecondary),
+                            const SizedBox(width: 6),
+                            Text(
+                                p['free_delivery'] == true
+                                    ? 'Free delivery'
+                                    : 'Delivery: ${ugx(num.tryParse('${p['delivery_fee'] ?? 0}') ?? 0)}',
+                                style: SogoText.labelMd.copyWith(
+                                    color: p['free_delivery'] == true
+                                        ? SogoColors.success
+                                        : SogoColors.textSecondary)),
+                          ]),
                         ]),
                       ),
                       if ('${p['description'] ?? ''}'.isNotEmpty) ...[
